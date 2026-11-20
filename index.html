@@ -1,3 +1,237 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GTA SHADOW X AI Clipper</title><style>
-body{margin:0;background:#080b10;color:#f5f7fb;font:15px system-ui}main{max-width:900px;width:92%;margin:35px auto}.lime{color:#baff39}section{background:#121b27;border:1px solid #29384b;border-radius:16px;padding:20px;margin:16px 0}input,select,button{box-sizing:border-box;width:100%;padding:13px;margin:7px 0;background:#080e17;color:white;border:1px solid #34445a;border-radius:9px}button{background:#baff39;color:#111;font-weight:bold}small,p{color:#a8b5c5}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media(max-width:600px){.row{grid-template-columns:1fr}}</style></head><body><main><h1>GTA <span class="lime">SHADOW X</span></h1><p>ONE VIDEO. MANY MOMENTS. — AI CLIPPER STARTER</p><section><h2>Start clipping</h2><label>Upload an authorized video file</label><input id="file" type="file" accept="video/*"><p>Or direct HTTPS video-file URL (not a normal YouTube watch page)</p><input id="url" placeholder="https://your-storage/video.mp4"><div class="row"><select id="count"><option>5</option><option selected>10</option><option>20</option><option>30</option></select><select id="duration"><option>15</option><option selected>30</option><option>45</option><option>60</option></select></div><select id="aspect"><option value="9:16">Vertical 9:16</option><option value="1:1">Square 1:1</option><option value="16:9">Landscape 16:9</option></select><select id="method"><option value="balanced">Scene-change selection</option><option value="even">Evenly spaced clips</option></select><button id="go">Generate clips</button><p id="status">Backend not connected.</p><div id="results"></div></section><section><h3>YouTube URL support</h3><input id="yt" placeholder="Paste YouTube URL for identification"><small>A YouTube link alone is not a downloadable source. Upload a copy you own or are authorized to edit, obtained through an authorized method. This tool does not bypass YouTube restrictions.</small></section></main><script>
-const API="https://gta-shadow-x.onrender.com";document.getElementById("go").onclick=async()=>{let s=document.getElementById("status"),f=document.getElementById("file").files[0],u=document.getElementById("url").value.trim();if(!API){s.textContent="Backend not connected. See README to deploy API and set gsx_api.";return}if(!f&&!u){s.textContent="Choose a file or direct media URL.";return}let d=new FormData();if(f)d.append("file",f);if(u)d.append("media_url",u);["count","duration","aspect","method"].forEach(k=>d.append(k,document.getElementById(k).value));s.textContent="Processing… keep this page open.";try{let r=await fetch(API+"/api/clip",{method:"POST",body:d}),j=await r.json();if(!r.ok)throw Error(j.detail||"Failed");s.textContent="Created "+j.clips.length+" clips";document.getElementById("results").innerHTML=j.clips.map((c,i)=>`<p>Clip ${i+1}: <a style="color:#baff39" href="${API+c.url}" download>Download MP4</a></p>`).join("")}catch(e){s.textContent=e.message}};</script></body></html>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GTA SHADOW X AI Clipper</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#080b10;color:#f5f7fb;font:15px system-ui}
+main{max-width:900px;width:92%;margin:30px auto}
+.lime{color:#baff39}
+section{background:#121b27;border:1px solid #29384b;border-radius:16px;padding:20px;margin:16px 0}
+input,select,button{width:100%;padding:13px;margin:7px 0;background:#080e17;color:white;border:1px solid #34445a;border-radius:9px}
+button{background:#baff39;color:#111;font-weight:bold;cursor:pointer}
+button:disabled{opacity:.5}
+small,p{color:#a8b5c5}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+#preview iframe{width:100%;aspect-ratio:16/9;border:0;border-radius:12px}
+.clip{padding:12px;background:#080e17;border:1px solid #34445a;border-radius:9px;margin:10px 0}
+a{color:#baff39}
+@media(max-width:600px){.row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+<h1>GTA <span class="lime">SHADOW X</span></h1>
+<p>ONE VIDEO. MANY MOMENTS. — AI CLIPPER</p>
+
+<section>
+<h2>Paste video URL</h2>
+<input id="sourceUrl" placeholder="Paste YouTube, Instagram, TikTok, Facebook or Twitch URL">
+<button id="check">Detect platform / Preview</button>
+<p id="platformStatus">Waiting for video URL...</p>
+<div id="preview"></div>
+<p id="sourceNote"></p>
+</section>
+
+<section>
+<h2>Start clipping</h2>
+<label>Upload an authorized video file</label>
+<input id="file" type="file" accept="video/*">
+
+<p>Or enter a direct HTTPS video-file URL (MP4, MOV, etc.)</p>
+<input id="directUrl" placeholder="https://example.com/video.mp4">
+
+<div class="row">
+<div>
+<label>Number of clips</label>
+<select id="count">
+<option>5</option>
+<option selected>10</option>
+<option>20</option>
+<option>30</option>
+</select>
+</div>
+<div>
+<label>Clip duration</label>
+<select id="duration">
+<option>15</option>
+<option selected>30</option>
+<option>45</option>
+<option>60</option>
+</select>
+</div>
+</div>
+
+<label>Video format</label>
+<select id="aspect">
+<option value="9:16">Vertical 9:16</option>
+<option value="1:1">Square 1:1</option>
+<option value="16:9">Landscape 16:9</option>
+</select>
+
+<label>Clip selection</label>
+<select id="method">
+<option value="balanced">Scene-change selection</option>
+<option value="even">Evenly spaced clips</option>
+</select>
+
+<button id="go">GENERATE CLIPS</button>
+<p id="status">Checking backend...</p>
+<div id="results"></div>
+</section>
+
+<section>
+<h3>Supported platform detection</h3>
+<p>YouTube · Instagram · TikTok · Facebook · Twitch · Direct video URLs</p>
+<small>Platform detection and preview do not download videos. For clipping, use a video file or direct media source you own or are authorized to edit. Platform integrations require their own permitted source access.</small>
+</section>
+</main>
+
+<script>
+const API="https://gta-shadow-x.onrender.com";
+
+const $=id=>document.getElementById(id);
+
+function detectPlatform(value){
+ try{
+  const u=new URL(value);
+  const host=u.hostname.toLowerCase().replace(/^www\./,"");
+
+  if(host==="youtube.com"||host==="m.youtube.com"||host==="youtu.be"){
+   let id="";
+   if(host==="youtu.be") id=u.pathname.split("/")[1];
+   else{
+    const parts=u.pathname.split("/").filter(Boolean);
+    if(parts[0]==="watch") id=u.searchParams.get("v");
+    else if(["shorts","live","embed"].includes(parts[0])) id=parts[1];
+   }
+   return {name:"YouTube",id};
+  }
+  if(host==="instagram.com") return {name:"Instagram"};
+  if(host==="tiktok.com") return {name:"TikTok"};
+  if(host==="facebook.com"||host==="fb.watch") return {name:"Facebook"};
+  if(host==="twitch.tv"||host==="clips.twitch.tv") return {name:"Twitch"};
+  return {name:"Direct / Other URL"};
+ }catch(e){return null}
+}
+
+$("check").onclick=()=>{
+ const value=$("sourceUrl").value.trim();
+ const result=detectPlatform(value);
+ $("preview").innerHTML="";
+ $("sourceNote").textContent="";
+
+ if(!result){
+  $("platformStatus").textContent="Please enter a valid URL.";
+  return;
+ }
+
+ $("platformStatus").textContent="Detected platform: "+result.name;
+
+ if(result.name==="YouTube"&&result.id){
+  const frame=document.createElement("iframe");
+  frame.src="https://www.youtube-nocookie.com/embed/"+encodeURIComponent(result.id);
+  frame.title="YouTube video preview";
+  frame.allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
+  frame.allowFullscreen=true;
+  $("preview").appendChild(frame);
+  $("sourceNote").textContent="Preview is available. To generate clips, provide an authorized video file or direct media URL below.";
+ }else{
+  $("sourceNote").textContent="Platform detected. Direct clipping requires an authorized video source or supported platform integration. A normal page URL cannot be processed as an MP4.";
+ }
+};
+
+$("sourceUrl").addEventListener("change",()=>{
+ if($("sourceUrl").value.trim()) $("check").click();
+});
+
+async function checkBackend(){
+ try{
+  const r=await fetch(API+"/");
+  if(!r.ok) throw new Error("Backend response: "+r.status);
+  $("status").textContent="Backend connected.";
+ }catch(e){
+  $("status").textContent="Backend connection failed. Check Render service.";
+ }
+}
+checkBackend();
+
+$("go").onclick=async()=>{
+ const file=$("file").files[0];
+ const direct=$("directUrl").value.trim();
+ const status=$("status");
+ const results=$("results");
+ results.innerHTML="";
+
+ if(Boolean(file)===Boolean(direct)){
+  status.textContent="Choose one video file OR one direct video URL.";
+  return;
+ }
+
+ if(direct){
+  try{
+   const u=new URL(direct);
+   if(u.protocol!=="https:") throw new Error();
+  }catch(e){
+   status.textContent="Please enter a valid HTTPS video URL.";
+   return;
+  }
+ }
+
+ const data=new FormData();
+ if(file) data.append("file",file);
+ if(direct) data.append("media_url",direct);
+ data.append("count",$("count").value);
+ data.append("duration",$("duration").value);
+ data.append("aspect",$("aspect").value);
+ data.append("method",$("method").value);
+
+ $("go").disabled=true;
+ status.textContent="Processing video. Please wait...";
+
+ try{
+  const response=await fetch(API+"/api/clip",{method:"POST",body:data});
+  const result=await response.json();
+
+  if(!response.ok) throw new Error(result.detail||"Clipping failed.");
+
+  status.textContent="Finished! "+result.clips.length+" clips generated.";
+
+  result.clips.forEach((clip,index)=>{
+   const box=document.createElement("div");
+   box.className="clip";
+
+   const heading=document.createElement("p");
+   heading.textContent="Clip "+(index+1)+" · "+Math.round(clip.start)+"s – "+Math.round(clip.end)+"s";
+
+   const video=document.createElement("video");
+   video.controls=true;
+   video.playsInline=true;
+   video.style.width="100%";
+   video.src=API+clip.url;
+
+   const link=document.createElement("a");
+   link.href=API+clip.url;
+   link.download="GTA-SHADOW-X-Clip-"+(index+1)+".mp4";
+   link.textContent="Download clip";
+
+   box.append(heading,video,link);
+   results.appendChild(box);
+  });
+
+  const note=document.createElement("p");
+  note.textContent=result.note||"Clips generated.";
+  results.appendChild(note);
+
+ }catch(e){
+  status.textContent="Error: "+e.message;
+ }finally{
+  $("go").disabled=false;
+ }
+};
+</script>
+</body>
+</html>
