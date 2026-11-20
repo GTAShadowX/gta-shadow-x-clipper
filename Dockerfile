@@ -1,0 +1,1 @@
+FROM python:3.11-slim\nRUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*\nWORKDIR /app\nCOPY requirements.txt .\nRUN pip install --no-cache-dir -r requirements.txt\nCOPY . .\nCMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}\n
