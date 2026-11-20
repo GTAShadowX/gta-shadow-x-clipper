@@ -233,5 +233,138 @@ $("go").onclick=async()=>{
  }
 };
 </script>
+ 
+<!-- GTA SHADOW X AUTHENTICATION -->
+<style>
+#gsx-auth {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: #080b10;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: Arial, sans-serif;
+}
+.gsx-card {
+  width: 90%;
+  max-width: 380px;
+  background: #111820;
+  padding: 28px;
+  border-radius: 16px;
+  text-align: center;
+}
+.gsx-card h1 { color: #b7ff36; }
+.gsx-card input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 14px;
+  margin: 8px 0;
+  background: #080b10;
+  color: white;
+  border: 1px solid #39434d;
+  border-radius: 8px;
+}
+.gsx-card button {
+  width: 100%;
+  padding: 14px;
+  margin-top: 10px;
+  background: #b7ff36;
+  border: 0;
+  border-radius: 8px;
+  font-weight: bold;
+}
+.gsx-card p { color: #aaa; font-size: 13px; }
+.gsx-card a { color: #b7ff36; cursor: pointer; }
+#gsx-message { color: #b7ff36; }
+</style>
+
+<div id="gsx-auth">
+  <div class="gsx-card">
+    <h1>GTA SHADOW X</h1>
+    <p>AI VIDEO CLIPPER</p>
+    <h3 id="gsx-heading">Create your account</h3>
+    <input id="gsx-email" type="email" placeholder="Email address">
+    <input id="gsx-password" type="password" placeholder="Password">
+    <button id="gsx-submit">Sign Up</button>
+    <p id="gsx-message">Create an account to continue.</p>
+    <p>
+      <span id="gsx-switch-text">Already have an account?</span>
+      <a id="gsx-switch">Login</a>
+    </p>
+  </div>
+</div>
+
+<script type="module">
+import { createClient } from
+'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+const supabase = createClient(
+  'https://ofgyoydkxvdpfqaictxa.supabase.co',
+  'sb_publishable_eHNIlEBcSwGW9IvNYCsg3w_w3njEZYy'
+);
+
+let loginMode = false;
+
+const auth = document.getElementById('gsx-auth');
+const message = document.getElementById('gsx-message');
+const submit = document.getElementById('gsx-submit');
+
+document.getElementById('gsx-switch').onclick = () => {
+  loginMode = !loginMode;
+  document.getElementById('gsx-heading').textContent =
+    loginMode ? 'Welcome Back' : 'Create your account';
+  submit.textContent = loginMode ? 'Login' : 'Sign Up';
+  document.getElementById('gsx-switch-text').textContent =
+    loginMode ? "New user?" : "Already have an account?";
+  document.getElementById('gsx-switch').textContent =
+    loginMode ? 'Sign Up' : 'Login';
+  message.textContent = '';
+};
+
+submit.onclick = async () => {
+  const email = document.getElementById('gsx-email').value.trim();
+  const password = document.getElementById('gsx-password').value;
+
+  if (!email || password.length < 6) {
+    message.textContent = 'Enter email and password (minimum 6 characters).';
+    return;
+  }
+
+  submit.disabled = true;
+  message.textContent = 'Please wait...';
+
+  try {
+    const result = loginMode
+      ? await supabase.auth.signInWithPassword({ email, password })
+      : await supabase.auth.signUp({ email, password });
+
+    if (result.error) throw result.error;
+
+    if (!loginMode && !result.data.session) {
+      message.textContent = 'Check your email to confirm your account, then login.';
+    } else {
+      message.textContent = 'Login successful!';
+    }
+  } catch (error) {
+    message.textContent = error.message;
+  } finally {
+    submit.disabled = false;
+  }
+};
+
+async function checkSession() {
+  const { data } = await supabase.auth.getSession();
+  auth.style.display = data.session ? 'none' : 'flex';
+}
+
+supabase.auth.onAuthStateChange((event, session) => {
+  auth.style.display = session ? 'none' : 'flex';
+});
+
+checkSession();
+ </script>
+ 
 </body>
 </html>
