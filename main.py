@@ -1,47 +1,64 @@
 
 import uuid
 import subprocess
-import json
-import re
 from pathlib import Path
-from urllib.parse import urlparse
 
-import requests
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-ROOT = Path(__file__).parent
-TMP = ROOT / "tmp"
-OUT = ROOT / "outputs"
+app = FastAPI(
+    title="GTA SHADOW X",
+    description="Video clipping API",
+    version="2.0"
+)
 
-TMP.mkdir(exist_ok=True)
-OUT.mkdir(exist_ok=True)
+BASE_DIR = Path(__file__).resolve().parent
+OUTPUT_DIR = BASE_DIR / "outputs"
+TEMP_DIR = BASE_DIR / "temp"
 
-MAX_SIZE = 500 * 1024 * 1024
-
-app = FastAPI(title="GTA SHADOW X API")
+OUTPUT_DIR.mkdir(exist_ok=True)
+TEMP_DIR.mkdir(exist_ok=True)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
-    allow_headers=["*"]
+    allow_headers=["*"],
 )
 
-app.mount("/outputs", StaticFiles(directory=OUT), name="outputs")
+app.mount(
+    "/outputs",
+    StaticFiles(directory=str(OUTPUT_DIR)),
+    name="outputs"
+)
 
 
-def cmd(args):
-    p = subprocess.run(
-        args,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True
+def run_command(command):
+    result = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        timeout=1800
     )
-    if p.returncode:
-        raise RuntimeError(p.stderr[-1500:])
-    return p.stdout
+
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr[-2000:])
+
+    return result.stdout.strip()
+
+
+def get_video_duration(path):
+    result = run_command([
+        "ffprobe",
+        "-v", "error",
+        "-show_entries", "format=duration",
+        "-of", "default=noprint_wrappers=1:nokey=1",
+        str(path)
+    ])
+
+    return float(result)
 
 
 @app.get("/")
@@ -49,229 +66,167 @@ def home():
     return {
         "status": "online",
         "app": "GTA SHADOW X",
-        "features": ["upload", "direct-video-url", "video-clipping"]
+        "version": "2.0"
     }
 
 
-def download_video(url, destination):
-    parsed = urlparse(url)
-
-    if parsed.scheme != "https" or not parsed.hostname:
-        raise HTTPException(400, "Valid HTTPS video URL required")
-
-    try:
-        with requests.get(
-            url,
-            stream=True,
-            timeout=(15, 60),
-            allow_redirects=True
-        ) as response:
-
-            response.raise_for_status()
-
-            if urlparse(response.url).scheme != "https":
-                raise HTTPException(400, "HTTPS redirects only")
-
-            size = 0
-
-            with destination.open("wb") as output:
-                for chunk in response.iter_content(1024 * 1024):
-                    if not chunk:
-                        continue
-
-                    size += len(chunk)
-
-                    if size > MAX_SIZE:
-                        raise HTTPException(413, "Maximum video size is 500 MB")
-
-                    output.write(chunk)
-
-            if size == 0:
-                raise HTTPException(400, "Empty video source")
-
-    except HTTPException:
-        raise
-    except requests.RequestException as error:
-        raise HTTPException(400, f"Unable to access URL: {error}")
-
-
-def get_video_duration(source):
-    metadata = json.loads(cmd([
-        "ffprobe",
-        "-v", "error",
-        "-show_entries", "format=duration",
-        "-show_entries", "stream=codec_type",
-        "-of", "json",
-        str(source)
-    ]))
-
-    if not any(
-        stream.get("codec_type") == "video"
-        for stream in metadata.get("streams", [])
-    ):
-        raise HTTPException(400, "Source is not a video")
-
-    total = float(metadata["format"]["duration"])
-
-    if total <= 0:
-        raise HTTPException(400, "Invalid video duration")
-
-    return total
+@app.get("/health")
+def health():
+    return {"status": "healthy"}
 
 
 @app.post("/api/clip")
-async def clip(
-    file: UploadFile | None = File(None),
-    media_url: str | None = Form(None),
-    count: int = Form(10),
+async def create_clips(
+    video: UploadFile = File(...),
+    clips: int = Form(5),
     duration: int = Form(30),
-    aspect: str = Form("9:16"),
+    ratio: str = Form("9:16"),
     method: str = Form("balanced")
 ):
-    if not 1 <= count <= 30:
-        raise HTTPException(400, "Choose 1 to 30 clips")
-
-    if duration not in [15, 30, 45, 60]:
-        raise HTTPException(400, "Invalid clip duration")
-
-    if aspect not in ["9:16", "1:1", "16:9"]:
-        raise HTTPException(400, "Invalid aspect ratio")
-
-    if method not in ["balanced", "even"]:
-        raise HTTPException(400, "Invalid clipping method")
-
-    if bool(file) == bool(media_url):
+    if clips not in [5, 10, 20, 30]:
         raise HTTPException(
-            400,
-            "Provide one video file or one direct video URL"
+            status_code=400,
+            detail="Choose 5, 10, 20 or 30 clips"
         )
 
-    job = uuid.uuid4().hex
-    source = TMP / f"{job}.mp4"
+    if duration not in [15, 30, 45, 60]:
+        raise HTTPException(
+            status_code=400,
+            detail="Choose 15, 30, 45 or 60 seconds"
+        )
+
+    if ratio not in ["9:16", "1:1", "16:9"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid video ratio"
+        )
+
+    extension = Path(video.filename or "").suffix.lower()
+
+    if extension not in [".mp4", ".mov", ".m4v", ".webm", ".mkv"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Upload MP4, MOV, M4V, WEBM or MKV"
+        )
+
+    job_id = uuid.uuid4().hex
+    input_path = TEMP_DIR / f"{job_id}{extension}"
+    job_dir = OUTPUT_DIR / job_id
+    job_dir.mkdir(parents=True, exist_ok=True)
 
     try:
-        if file:
-            if file.content_type and not file.content_type.startswith("video/"):
-                raise HTTPException(400, "Upload a video file")
+        size = 0
+        max_size = 500 * 1024 * 1024
 
-            size = 0
+        with input_path.open("wb") as buffer:
+            while True:
+                chunk = await video.read(1024 * 1024)
 
-            with source.open("wb") as output:
-                while True:
-                    chunk = await file.read(1024 * 1024)
-                    if not chunk:
-                        break
+                if not chunk:
+                    break
 
-                    size += len(chunk)
+                size += len(chunk)
 
-                    if size > MAX_SIZE:
-                        raise HTTPException(413, "Maximum upload is 500 MB")
+                if size > max_size:
+                    raise HTTPException(
+                        status_code=413,
+                        detail="Maximum upload size is 500 MB"
+                    )
 
-                    output.write(chunk)
-        else:
-            download_video(media_url, source)
+                buffer.write(chunk)
 
-        total = get_video_duration(source)
-
-        if total < duration:
+        if size == 0:
             raise HTTPException(
-                400,
-                "Video is shorter than selected clip duration"
+                status_code=400,
+                detail="Uploaded video is empty"
             )
 
-        marks = []
+        total_duration = get_video_duration(input_path)
 
-        if method == "balanced":
-            try:
-                scene_output = cmd([
-                    "ffmpeg",
-                    "-i", str(source),
-                    "-vf", "select='gt(scene,0.28)',showinfo",
-                    "-an",
-                    "-f", "null",
-                    "-"
-                ])
+        if total_duration < 2:
+            raise HTTPException(
+                status_code=400,
+                detail="Video is too short"
+            )
 
-                marks = [
-                    float(value)
-                    for value in re.findall(
-                        r"pts_time:([0-9.]+)",
-                        scene_output
-                    )
-                ]
-            except Exception:
-                marks = []
+        clip_length = min(duration, total_duration)
 
-        candidates = [
-            max(0, min(total - duration, t - duration / 2))
-            for t in marks
-            if duration / 2 <= t <= total - duration / 2
-        ]
-
-        if len(candidates) < count:
-            candidates = [
-                i * (total - duration) / max(1, count - 1)
-                for i in range(count)
+        if total_duration <= clip_length:
+            starts = [0]
+        else:
+            starts = [
+                i * (total_duration - clip_length) / (clips - 1)
+                for i in range(clips)
             ]
 
-        starts = []
+        if ratio == "9:16":
+            video_filter = (
+                "scale=1080:1920:force_original_aspect_ratio=increase,"
+                "crop=1080:1920"
+            )
+        elif ratio == "1:1":
+            video_filter = (
+                "scale=1080:1080:force_original_aspect_ratio=increase,"
+                "crop=1080:1080"
+            )
+        else:
+            video_filter = (
+                "scale=1920:1080:force_original_aspect_ratio=increase,"
+                "crop=1920:1080"
+            )
 
-        for i in range(count):
-            target = i * (total - duration) / max(1, count - 1)
+        results = []
 
-            if candidates:
-                pick = min(candidates, key=lambda x: abs(x - target))
-            else:
-                pick = target
+        for index, start in enumerate(starts, start=1):
+            filename = f"clip_{index:02d}.mp4"
+            output_path = job_dir / filename
 
-            if all(abs(pick - previous) > duration * 0.5 for previous in starts):
-                starts.append(pick)
-            else:
-                starts.append(target)
-
-        filters = {
-            "9:16": "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920",
-            "1:1": "scale=1080:1080:force_original_aspect_ratio=increase,crop=1080:1080",
-            "16:9": "scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080"
-        }
-
-        clips = []
-
-        for i, start in enumerate(starts):
-            name = f"{job}_{i+1}.mp4"
-            destination = OUT / name
-
-            cmd([
+            run_command([
                 "ffmpeg",
                 "-y",
                 "-ss", str(start),
-                "-i", str(source),
-                "-t", str(duration),
-                "-vf", filters[aspect],
+                "-i", str(input_path),
+                "-t", str(clip_length),
+                "-vf", video_filter,
                 "-c:v", "libx264",
                 "-preset", "veryfast",
-                "-crf", "24",
+                "-crf", "23",
                 "-c:a", "aac",
+                "-b:a", "128k",
                 "-movflags", "+faststart",
-                str(destination)
+                "-avoid_negative_ts", "make_zero",
+                str(output_path)
             ])
 
-            clips.append({
+            results.append({
+                "name": filename,
+                "url": f"/outputs/{job_id}/{filename}",
+                "download_url": f"/outputs/{job_id}/{filename}",
                 "start": round(start, 2),
-                "end": round(start + duration, 2),
-                "url": "/outputs/" + name
+                "duration": round(clip_length, 2)
             })
 
         return {
             "success": True,
-            "clips": clips,
-            "note": "Clips generated using scene-change or evenly spaced selection. Not semantic AI highlights."
+            "app": "GTA SHADOW X",
+            "job_id": job_id,
+            "total_clips": len(results),
+            "method": "evenly_spaced",
+            "clips": results
         }
 
     except HTTPException:
         raise
+
     except Exception as error:
-        raise HTTPException(500, str(error))
+        raise HTTPException(
+            status_code=500,
+            detail=f"Video processing failed: {str(error)}"
+        )
+
     finally:
-        source.unlink(missing_ok=True)
-     
+        await video.close()
+
+        if input_path.exists():
+            input_path.unlink()
+        
