@@ -63,10 +63,10 @@ def get_video_duration(path):
 
 @app.get("/")
 def home():
-    return {
-        "status": "online",
-        "app": "GTA SHADOW X",
-        "version": "2.0"
+    return FileResponse(
+        str(BASE_DIR / "index.html"),
+        media_type="text/html"
+    
     }
 
 
