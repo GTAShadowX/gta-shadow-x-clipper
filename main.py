@@ -87,6 +87,8 @@ def download_authorized_youtube_video(url, job_dir):
         "--socket-timeout", "20",
         "--retries", "2",
         "--max-filesize", "1G",
+        "--js-runtimes", "deno",
+"--remote-components", "ejs:github",
         "-f", "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/b",
         "--merge-output-format", "mp4",
         "-o", output_template,
