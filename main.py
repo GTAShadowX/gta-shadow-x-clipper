@@ -116,7 +116,7 @@ async def create_clips(
 
     try:
         size = 0
-        max_size = 500 * 1024 * 1024
+        max_size = 1024 * 1024 * 1024
 
         with input_path.open("wb") as buffer:
             while True:
@@ -130,7 +130,7 @@ async def create_clips(
                 if size > max_size:
                     raise HTTPException(
                         status_code=413,
-                        detail="Maximum upload size is 500 MB"
+                        detail="Maximum upload size is 1 GB"
                     )
 
                 buffer.write(chunk)
