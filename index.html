@@ -5,7 +5,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>GTA SHADOW X AI Clipper</title>
-
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#080b10;color:#f5f7fb;font:15px system-ui}
@@ -33,32 +32,23 @@ a{color:#baff39}
 #gsx-message{color:#baff39}
 </style>
 </head>
-
 <body>
-
 <main>
 <h1>GTA <span class="lime">SHADOW X</span></h1>
 <p>ONE VIDEO. MANY MOMENTS. — AI CLIPPER</p>
 
 <section>
-<h2>YouTube video preview</h2>
-
-<input id="sourceUrl" placeholder="Paste YouTube video URL">
-
-<button id="check">DETECT / PREVIEW VIDEO</button>
-
-<p id="platformStatus">Waiting for video URL...</p>
+<h2>YouTube video URL</h2>
+<input id="sourceUrl" type="url" placeholder="Paste YouTube video URL here">
+<button id="check">PREVIEW VIDEO</button>
+<p id="platformStatus">Waiting for YouTube URL...</p>
 <div id="preview"></div>
 <p id="sourceNote"></p>
 </section>
 
 <section>
 <h2>Generate clips</h2>
-
-<label>Upload the matching authorized video file</label>
-<input id="file" type="file" accept="video/mp4,video/*">
-
-<p>After previewing YouTube, upload the corresponding video file you own or have permission to edit.</p>
+<p>Paste your authorized YouTube video URL above. No separate video upload required.</p>
 
 <div class="row">
 <div>
@@ -70,7 +60,6 @@ a{color:#baff39}
 <option value="30">30 clips</option>
 </select>
 </div>
-
 <div>
 <label>Clip duration</label>
 <select id="duration">
@@ -89,10 +78,8 @@ a{color:#baff39}
 <option value="16:9">Landscape 16:9</option>
 </select>
 
-<p>Clip selection: evenly spaced sections of your video.</p>
-
+<p>Clip selection: evenly spaced sections of your video. This is not AI viral-moment detection.</p>
 <button id="go">GENERATE CLIPS</button>
-
 <p id="status">Connecting to backend...</p>
 <div id="results"></div>
 </section>
@@ -100,26 +87,19 @@ a{color:#baff39}
 <section>
 <h3>GTA SHADOW X</h3>
 <p>YouTube · Instagram · TikTok · Facebook · Twitch</p>
-<small>Platform previews do not download videos. Upload an authorized video file to generate clips.</small>
+<small>Only process videos you own or have permission to download and edit. Private or restricted videos are not supported.</small>
 </section>
 </main>
-
-<!-- LOGIN -->
 
 <div id="gsx-auth">
 <div class="gsx-card">
 <h1>GTA SHADOW X</h1>
 <p>AI VIDEO CLIPPER</p>
-
 <h3 id="gsx-heading">Create your account</h3>
-
 <input id="gsx-email" type="email" placeholder="Email address">
 <input id="gsx-password" type="password" placeholder="Password">
-
 <button id="gsx-submit">Sign Up</button>
-
 <p id="gsx-message">Create an account to continue.</p>
-
 <p>
 <span id="gsx-switch-text">Already have an account?</span>
 <a id="gsx-switch">Login</a>
@@ -128,304 +108,198 @@ a{color:#baff39}
 </div>
 
 <script>
-const API = "https://gta-shadow-x.onrender.com";
-const $ = id => document.getElementById(id);
-
-// YOUTUBE DETECTION
+const API="https://gta-shadow-x.onrender.com";
+const $=id=>document.getElementById(id);
 
 function getYouTubeID(value){
  try{
-  const u = new URL(value);
-  const host = u.hostname.toLowerCase().replace(/^www\./,"");
-
-  if(host === "youtu.be"){
-   return u.pathname.split("/").filter(Boolean)[0] || null;
+  const u=new URL(value);
+  const host=u.hostname.toLowerCase().replace(/^www\./,"");
+  if(host==="youtu.be") return u.pathname.split("/").filter(Boolean)[0]||null;
+  if(["youtube.com","m.youtube.com","music.youtube.com"].includes(host)){
+   if(u.pathname==="/watch") return u.searchParams.get("v");
+   const parts=u.pathname.split("/").filter(Boolean);
+   if(["shorts","live","embed"].includes(parts[0])) return parts[1]||null;
   }
-
-  if(
-   host === "youtube.com" ||
-   host === "m.youtube.com" ||
-   host === "music.youtube.com"
-  ){
-   if(u.pathname === "/watch"){
-    return u.searchParams.get("v");
-   }
-
-   const parts = u.pathname.split("/").filter(Boolean);
-
-   if(["shorts","live","embed"].includes(parts[0])){
-    return parts[1] || null;
-   }
-  }
-
   return null;
- }catch(e){
-  return null;
- }
+ }catch(e){return null;}
 }
 
-// PLATFORM PREVIEW
-
-$("check").onclick = () => {
- const value = $("sourceUrl").value.trim();
- const preview = $("preview");
-
- preview.innerHTML = "";
- $("sourceNote").textContent = "";
-
- const id = getYouTubeID(value);
-
+$("check").onclick=()=>{
+ const value=$("sourceUrl").value.trim();
+ const id=getYouTubeID(value);
+ $("preview").innerHTML="";
+ $("sourceNote").textContent="";
  if(!id){
-  $("platformStatus").textContent =
-   "Valid YouTube URL not detected.";
+  $("platformStatus").textContent="Please enter a valid YouTube URL.";
   return;
  }
-
- $("platformStatus").textContent =
-  "YouTube video detected successfully.";
-
- const frame = document.createElement("iframe");
-
- frame.src =
-  "https://www.youtube-nocookie.com/embed/" +
-  encodeURIComponent(id);
-
- frame.title = "YouTube video preview";
- frame.allow =
-  "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
-
- frame.allowFullscreen = true;
-
- preview.appendChild(frame);
-
- $("sourceNote").textContent =
-  "Video preview ready. Upload your authorized matching video file below to generate clips.";
+ $("platformStatus").textContent="YouTube video detected.";
+ const frame=document.createElement("iframe");
+ frame.src="https://www.youtube-nocookie.com/embed/"+encodeURIComponent(id);
+ frame.title="YouTube video preview";
+ frame.allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
+ frame.allowFullscreen=true;
+ $("preview").appendChild(frame);
+ $("sourceNote").textContent="Preview ready. You can now generate clips.";
 };
 
-$("sourceUrl").addEventListener("change", () => {
- if($("sourceUrl").value.trim()){
-  $("check").click();
- }
+$("sourceUrl").addEventListener("change",()=>{
+ if($("sourceUrl").value.trim()) $("check").click();
 });
-
-// BACKEND STATUS
 
 async function checkBackend(){
  try{
-  const response = await fetch(API + "/");
-
-  if(!response.ok){
-   throw new Error("Backend HTTP " + response.status);
-  }
-
-  const data = await response.json();
-
-  $("status").textContent =
-   "Backend connected: " +
-   data.status +
-   " | " +
-   (data.app || "GTA SHADOW X") +
-   " | Version " +
-   (data.version || "unknown");
-
+  const response=await fetch(API+"/health");
+  if(!response.ok) throw new Error("HTTP "+response.status);
+  const data=await response.json();
+  $("status").textContent="Backend connected: "+data.status+" | "+data.app+" | Version "+data.version;
  }catch(error){
-  $("status").textContent =
-   "Backend connection failed: " + error.message;
+  $("status").textContent="Backend connection failed: "+error.message;
  }
 }
-
 checkBackend();
 
-// GENERATE CLIPS
+$("go").onclick=async()=>{
+ const url=$("sourceUrl").value.trim();
+ const id=getYouTubeID(url);
+ const status=$("status");
+ const button=$("go");
+ const results=$("results");
+ results.innerHTML="";
 
-$("go").onclick = async () => {
- const file = $("file").files[0];
- const results = $("results");
- const status = $("status");
- const button = $("go");
-
- results.innerHTML = "";
-
- if(!file){
-  status.textContent =
-   "Please upload your authorized video file first.";
+ if(!id){
+  status.textContent="Please paste a valid YouTube URL first.";
   return;
  }
 
- if(file.size > 1024 * 1024 * 1024){
-  status.textContent =
-   "Maximum video upload size is 1 GB.";
-  return;
- }
-
- const data = new FormData();
-
- // IMPORTANT: These field names match Backend v2.0.
- data.append("video", file);
- data.append("clips", $("count").value);
- data.append("duration", $("duration").value);
- data.append("ratio", $("aspect").value);
- data.append("method", "balanced");
-
- button.disabled = true;
- status.textContent = "Uploading video and generating clips...";
+ button.disabled=true;
+ status.textContent="Importing YouTube video and generating clips. Please wait...";
 
  try{
-  const response = await fetch(API + "/api/clip", {
-   method: "POST",
-   body: data
+  const response=await fetch(API+"/api/clip-url",{
+   method:"POST",
+   headers:{"Content-Type":"application/json"},
+   body:JSON.stringify({
+    url:url,
+    clips:Number($("count").value),
+    duration:Number($("duration").value),
+    ratio:$("aspect").value
+   })
   });
 
-  const result = await response.json();
+  const result=await response.json();
 
   if(!response.ok){
-   throw new Error(
-    result.detail || "Video processing failed."
-   );
+   throw new Error(result.detail||"Video processing failed.");
   }
 
-  if(!result.clips || !result.clips.length){
-   throw new Error("No clips returned by backend.");
+  if(!result.clips||!result.clips.length){
+   throw new Error("No clips were returned.");
   }
 
-  status.textContent =
-   "SUCCESS! " + result.clips.length +
-   " clips generated.";
+  status.textContent="SUCCESS! "+result.clips.length+" clips generated.";
 
-  result.clips.forEach((clip,index) => {
-   const box = document.createElement("div");
-   box.className = "clip";
+  result.clips.forEach((clip,index)=>{
+   const box=document.createElement("div");
+   box.className="clip";
 
-   const heading = document.createElement("h3");
-   heading.textContent = "CLIP " + (index + 1);
+   const heading=document.createElement("h3");
+   heading.textContent="CLIP "+(index+1);
 
-   const details = document.createElement("p");
-   details.textContent =
-    "Start: " + Math.round(clip.start) +
-    " seconds | Duration: " +
-    Math.round(clip.duration) + " seconds";
+   const details=document.createElement("p");
+   details.textContent="Start: "+Math.round(clip.start)+" seconds | Duration: "+Math.round(clip.duration)+" seconds";
 
-   const video = document.createElement("video");
-   video.controls = true;
-   video.playsInline = true;
+   const video=document.createElement("video");
+   video.controls=true;
+   video.playsInline=true;
+   const clipUrl=clip.url.startsWith("http")?clip.url:API+clip.url;
+   video.src=clipUrl;
 
-   const clipUrl = clip.url.startsWith("http")
-    ? clip.url
-    : API + clip.url;
-
-   video.src = clipUrl;
-
-   const download = document.createElement("a");
-   download.href = clipUrl;
-   download.download =
-    "GTA-SHADOW-X-Clip-" + (index + 1) + ".mp4";
-   download.textContent = "DOWNLOAD CLIP";
+   const download=document.createElement("a");
+   download.href=clipUrl;
+   download.download="GTA-SHADOW-X-Clip-"+(index+1)+".mp4";
+   download.textContent="DOWNLOAD CLIP";
 
    box.append(heading,details,video,document.createElement("br"),download);
    results.appendChild(box);
   });
 
  }catch(error){
-  status.textContent = "ERROR: " + error.message;
+  status.textContent="ERROR: "+error.message;
  }finally{
-  button.disabled = false;
+  button.disabled=false;
  }
 };
 </script>
 
-<!-- SUPABASE AUTHENTICATION -->
-
 <script type="module">
-import { createClient } from
-"https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+import {createClient} from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
-const supabase = createClient(
+const supabase=createClient(
  "https://ofgyoydkxvdpfqaictxa.supabase.co",
  "sb_publishable_eHNIlEBcSwGW9IvNYCsg3w_w3njEZYy"
 );
 
-let loginMode = false;
+let loginMode=false;
+const auth=document.getElementById("gsx-auth");
+const message=document.getElementById("gsx-message");
+const submit=document.getElementById("gsx-submit");
 
-const auth = document.getElementById("gsx-auth");
-const message = document.getElementById("gsx-message");
-const submit = document.getElementById("gsx-submit");
-
-document.getElementById("gsx-switch").onclick = () => {
- loginMode = !loginMode;
-
- document.getElementById("gsx-heading").textContent =
-  loginMode ? "Welcome Back" : "Create your account";
-
- submit.textContent = loginMode ? "Login" : "Sign Up";
-
- document.getElementById("gsx-switch-text").textContent =
-  loginMode ? "New user?" : "Already have an account?";
-
- document.getElementById("gsx-switch").textContent =
-  loginMode ? "Sign Up" : "Login";
-
- message.textContent = "";
+document.getElementById("gsx-switch").onclick=()=>{
+ loginMode=!loginMode;
+ document.getElementById("gsx-heading").textContent=loginMode?"Welcome Back":"Create your account";
+ submit.textContent=loginMode?"Login":"Sign Up";
+ document.getElementById("gsx-switch-text").textContent=loginMode?"New user?":"Already have an account?";
+ document.getElementById("gsx-switch").textContent=loginMode?"Sign Up":"Login";
+ message.textContent="";
 };
 
-submit.onclick = async () => {
- const email =
-  document.getElementById("gsx-email").value.trim();
+submit.onclick=async()=>{
+ const email=document.getElementById("gsx-email").value.trim();
+ const password=document.getElementById("gsx-password").value;
 
- const password =
-  document.getElementById("gsx-password").value;
-
- if(!email || password.length < 6){
-  message.textContent =
-   "Enter email and password (minimum 6 characters).";
+ if(!email||password.length<6){
+  message.textContent="Enter email and password (minimum 6 characters).";
   return;
  }
 
- submit.disabled = true;
- message.textContent = "Please wait...";
+ submit.disabled=true;
+ message.textContent="Please wait...";
 
  try{
-  const result = loginMode
-   ? await supabase.auth.signInWithPassword({
-      email,password
-     })
-   : await supabase.auth.signUp({
-      email,password
-     });
+  const result=loginMode
+   ?await supabase.auth.signInWithPassword({email,password})
+   :await supabase.auth.signUp({email,password});
 
   if(result.error) throw result.error;
 
-  if(!loginMode && !result.data.session){
-   message.textContent =
-    "Check your email to confirm your account, then login.";
+  if(!loginMode&&!result.data.session){
+   message.textContent="Check your email to confirm your account, then login.";
   }else{
-   message.textContent = "Login successful!";
-   auth.style.display = "none";
+   message.textContent="Login successful!";
+   auth.style.display="none";
   }
-
  }catch(error){
-  message.textContent = error.message;
+  message.textContent=error.message;
  }finally{
-  submit.disabled = false;
+  submit.disabled=false;
  }
 };
 
 async function checkSession(){
- const {data,error} = await supabase.auth.getSession();
-
+ const {data,error}=await supabase.auth.getSession();
  if(error){
-  message.textContent = error.message;
+  message.textContent=error.message;
   return;
  }
-
- auth.style.display = data.session ? "none" : "flex";
+ auth.style.display=data.session?"none":"flex";
 }
 
-supabase.auth.onAuthStateChange((event,session) => {
- auth.style.display = session ? "none" : "flex";
+supabase.auth.onAuthStateChange((event,session)=>{
+ auth.style.display=session?"none":"flex";
 });
-
 checkSession();
 </script>
-
 </body>
 </html>
