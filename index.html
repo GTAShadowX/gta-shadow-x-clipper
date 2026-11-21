@@ -252,7 +252,7 @@ $("go").onclick = async () => {
   return;
  }
 
- if(file.size > 500 * 1024 * 1024){
+ if(file.size > 1024 * 1024 * 1024){
   status.textContent =
    "Maximum video upload size is 500 MB.";
   return;
