@@ -6,6 +6,7 @@ from pathlib import Path
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 app = FastAPI(
     title="GTA SHADOW X",
@@ -61,19 +62,27 @@ def get_video_duration(path):
     return float(result)
 
 
+# WEBSITE HOMEPAGE
+
 @app.get("/")
 def home():
     return FileResponse(
         str(BASE_DIR / "index.html"),
         media_type="text/html"
-    
-    }
+    )
 
+
+# HEALTH CHECK
 
 @app.get("/health")
 def health():
-    return {"status": "healthy"}
+    return {
+        "status": "healthy",
+        "app": "GTA SHADOW X"
+    }
 
+
+# VIDEO CLIPPING API
 
 @app.post("/api/clip")
 async def create_clips(
@@ -83,6 +92,7 @@ async def create_clips(
     ratio: str = Form("9:16"),
     method: str = Form("balanced")
 ):
+
     if clips not in [5, 10, 20, 30]:
         raise HTTPException(
             status_code=400,
@@ -103,7 +113,9 @@ async def create_clips(
 
     extension = Path(video.filename or "").suffix.lower()
 
-    if extension not in [".mp4", ".mov", ".m4v", ".webm", ".mkv"]:
+    if extension not in [
+        ".mp4", ".mov", ".m4v", ".webm", ".mkv"
+    ]:
         raise HTTPException(
             status_code=400,
             detail="Upload MP4, MOV, M4V, WEBM or MKV"
@@ -164,11 +176,13 @@ async def create_clips(
                 "scale=1080:1920:force_original_aspect_ratio=increase,"
                 "crop=1080:1920"
             )
+
         elif ratio == "1:1":
             video_filter = (
                 "scale=1080:1080:force_original_aspect_ratio=increase,"
                 "crop=1080:1080"
             )
+
         else:
             video_filter = (
                 "scale=1920:1080:force_original_aspect_ratio=increase,"
@@ -178,6 +192,7 @@ async def create_clips(
         results = []
 
         for index, start in enumerate(starts, start=1):
+
             filename = f"clip_{index:02d}.mp4"
             output_path = job_dir / filename
 
@@ -229,4 +244,3 @@ async def create_clips(
 
         if input_path.exists():
             input_path.unlink()
-        
