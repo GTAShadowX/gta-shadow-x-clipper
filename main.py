@@ -284,6 +284,21 @@ def home():
     )
 
 
+@app.get("/sitemap.xml", include_in_schema=False)
+def sitemap():
+    return FileResponse(
+        str(BASE_DIR / "sitemap.xml"),
+        media_type="application/xml"
+    )
+
+
+@app.get("/robots.txt", include_in_schema=False)
+def robots():
+    return FileResponse(
+        str(BASE_DIR / "robots.txt"),
+        media_type="text/plain"
+    )
+    
 @app.get("/health")
 def health():
     return {
