@@ -184,6 +184,47 @@ def download_authorized_youtube_video(url, job_dir):
 
 
 def get_video_duration(path):
+    
+@app.post("/api/download-youtube")
+async def download_youtube_video(request: Request):
+    payload = await request.json()
+
+    url = validate_youtube_url(
+        str(payload.get("url", "")).strip()
+    )
+
+    job_id = uuid.uuid4().hex
+    job_dir = TEMP_DIR / job_id
+    job_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        source = download_authorized_youtube_video(
+            url,
+            job_dir
+        )
+
+        return FileResponse(
+            path=str(source),
+            media_type="application/octet-stream",
+            filename="GTA-SHADOW-X-video" + source.suffix,
+            background=BackgroundTask(
+                shutil.rmtree,
+                str(job_dir),
+                ignore_errors=True
+            )
+        )
+
+    except HTTPException:
+        shutil.rmtree(job_dir, ignore_errors=True)
+        raise
+
+    except Exception as error:
+        shutil.rmtree(job_dir, ignore_errors=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Download failed: {str(error)[-1000:]}"
+        )
+        
     result = run_command([
         "ffprobe",
         "-v", "error",
