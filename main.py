@@ -10,7 +10,7 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-
+from starlette.background import BackgroundTask
 app = FastAPI(
     title="GTA SHADOW X",
     description="Video clipping API",
