@@ -161,24 +161,66 @@ function showClips(result){
  });
 }
 
-$("check").onclick=()=>{
- const value=$("sourceUrl").value.trim();
- const id=getYouTubeID(value);
- $("preview").innerHTML="";
- $("sourceNote").textContent="";
- if(!id){
-  $("platformStatus").textContent="Please enter a valid YouTube URL.";
-  return;
- }
- $("platformStatus").textContent="YouTube video detected.";
- const frame=document.createElement("iframe");
- frame.src="https://www.youtube-nocookie.com/embed/"+encodeURIComponent(id);
- frame.title="YouTube video preview";
- frame.allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
- frame.allowFullscreen=true;
- $("preview").appendChild(frame);
- $("sourceNote").textContent="Preview ready. You can now generate clips.";
+ 
+$("check").onclick=async()=>{
+    const value=$("sourceUrl").value.trim();
+    const id=getYouTubeID(value);
+
+    $("preview").innerHTML="";
+    $("sourceNote").textContent="";
+
+    if(!id){
+        $("platformStatus").textContent="Please enter a valid YouTube URL.";
+        return;
+    }
+
+    $("platformStatus").textContent="YouTube URL detected.";
+
+    const downloadButton=document.createElement("button");
+    downloadButton.textContent="DOWNLOAD VIDEO (MP4)";
+    $("preview").appendChild(downloadButton);
+
+    downloadButton.onclick=async()=>{
+        downloadButton.disabled=true;
+        downloadButton.textContent="DOWNLOADING...";
+
+        try{
+            const response=await fetch(API+"/api/download-youtube",{
+                method:"POST",
+                headers:{"Content-Type":"application/json"},
+                body:JSON.stringify({url:value})
+            });
+
+            if(!response.ok){
+                const error=await response.json();
+                throw new Error(error.detail||"Download failed");
+            }
+
+            const blob=await response.blob();
+            const objectURL=URL.createObjectURL(blob);
+            const link=document.createElement("a");
+
+            link.href=objectURL;
+            link.download="GTA-SHADOW-X-video.mp4";
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+
+            setTimeout(()=>URL.revokeObjectURL(objectURL),60000);
+
+            $("platformStatus").textContent="Download started successfully.";
+
+        }catch(error){
+            $("platformStatus").textContent="ERROR: "+error.message;
+        }finally{
+            downloadButton.disabled=false;
+            downloadButton.textContent="DOWNLOAD VIDEO (MP4)";
+        }
+    };
+
+    $("sourceNote").textContent="Ready to download your authorized video.";
 };
+ 
 
 $("sourceUrl").addEventListener("change",()=>{
  if($("sourceUrl").value.trim()) $("check").click();
