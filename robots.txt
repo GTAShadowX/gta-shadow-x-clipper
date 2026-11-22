@@ -1,0 +1,5 @@
+
+User-agent: *
+Allow: /
+
+Sitemap: https://gta-shadow-x.onrender.com/sitemap.xml
